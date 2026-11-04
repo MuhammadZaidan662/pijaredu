@@ -1,11 +1,10 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'login_page.dart';
-import '../dashboard/dashboard_page.dart';
+import '../onboarding/onboarding_page.dart';
+import '../shell/app_shell.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -34,7 +33,7 @@ class _AuthGateState extends State<AuthGate> {
       },
     );
 
-    // Periksa juga sesi yang mungkin sudah tersimpan.
+    // Also check for a session that is already stored.
     _loadUser(_supabase.auth.currentUser);
   }
 
@@ -71,7 +70,7 @@ class _AuthGateState extends State<AuthGate> {
 
       if (profile == null) {
         setState(() {
-          _error = 'Profil pengguna tidak ditemukan.';
+          _error = 'User profile not found.';
           _loading = false;
         });
         return;
@@ -82,7 +81,7 @@ class _AuthGateState extends State<AuthGate> {
         _loading = false;
       });
     } catch (e, stackTrace) {
-      debugPrint('Gagal memuat profil: $e');
+      debugPrint('Failed to load profile: $e');
       debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted || _supabase.auth.currentUser?.id != user.id) {
@@ -90,14 +89,14 @@ class _AuthGateState extends State<AuthGate> {
       }
 
       setState(() {
-        _error = 'Gagal memuat profil: $e';
+        _error = 'Failed to load profile: $e';
         _loading = false;
       });
     }
   }
 
 
-@override
+  @override
   void dispose() {
     _authSubscription?.cancel();
     super.dispose();
@@ -114,7 +113,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (_user == null) {
-      return const LoginPage();
+      return const WelcomeGate();
     }
 
     if (_error != null) {
@@ -129,11 +128,11 @@ class _AuthGateState extends State<AuthGate> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () => _loadUser(_user),
-                  child: const Text('Coba Lagi'),
+                  child: const Text('Try Again'),
                 ),
                 TextButton(
                   onPressed: () => _supabase.auth.signOut(),
-                  child: const Text('Keluar'),
+                  child: const Text('Sign Out'),
                 ),
               ],
             ),
@@ -148,11 +147,11 @@ class _AuthGateState extends State<AuthGate> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Role pengguna tidak dikenal.'),
+              const Text('Unknown user role.'),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () => _supabase.auth.signOut(),
-                child: const Text('Keluar'),
+                child: const Text('Sign Out'),
               ),
             ],
           ),
@@ -160,6 +159,6 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    return DashboardPage(role: _role!);
+    return MainShell(role: _role!);
   }
 }

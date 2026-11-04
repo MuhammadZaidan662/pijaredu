@@ -1,14 +1,19 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class MaterialsPage extends StatefulWidget {
-  final String role;
+import '../../app/theme.dart';
 
+class MaterialsPage extends StatefulWidget {
   const MaterialsPage({
     super.key,
     required this.role,
+    this.embedded = false,
   });
+
+  final String role;
+
+  /// True when shown as a bottom-navigation tab (no back button).
+  final bool embedded;
 
   @override
   State<MaterialsPage> createState() => _MaterialsPageState();
@@ -20,6 +25,8 @@ class _MaterialsPageState extends State<MaterialsPage> {
   List<Map<String, dynamic>> _materials = [];
   bool _loading = true;
   String? _error;
+
+  bool get _canManage => widget.role == 'lecturer' || widget.role == 'admin';
 
   @override
   void initState() {
@@ -36,9 +43,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
     try {
       final data = await _supabase
           .from('materials')
-          .select(
-        'id, title, description, content, is_published, created_at',
-      )
+          .select('id, title, description, content, is_published, created_at')
           .order('created_at', ascending: false);
 
       if (!mounted) return;
@@ -66,112 +71,211 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final canManage =
-        widget.role == 'lecturer' || widget.role == 'admin';
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Materi Database Systems'),
-        actions: [
-          IconButton(
-            onPressed: _loadMaterials,
-            tooltip: 'Muat ulang',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
+    if (_error != null) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48),
+              const Icon(Icons.cloud_off_rounded,
+                  size: 48, color: AppColors.textGrey),
               const SizedBox(height: 12),
               const Text(
-                'Gagal memuat materi dari Supabase.',
-                textAlign: TextAlign.center,
+                'Could not load materials.',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textGrey,
+                ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadMaterials,
-                child: const Text('Coba Lagi'),
+              SizedBox(
+                width: 160,
+                child: ElevatedButton(
+                  onPressed: _loadMaterials,
+                  child: const Text('Try Again'),
+                ),
               ),
             ],
           ),
         ),
-      )
-          : _materials.isEmpty
-          ? const Center(
-        child: Text('Belum ada materi untuk ditampilkan.'),
-      )
-          : RefreshIndicator(
-        onRefresh: _loadMaterials,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _materials.length,
-          itemBuilder: (context, index) {
-            final material = _materials[index];
-            final published =
-                material['is_published'] == true;
+      );
+    }
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading: const CircleAvatar(
-                  child: Icon(Icons.menu_book),
+    if (_materials.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadMaterials,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 120),
+            Icon(Icons.menu_book_outlined,
+                size: 48, color: AppColors.textGrey),
+            SizedBox(height: 12),
+            Center(
+              child: Text(
+                'No materials yet.',
+                style: TextStyle(color: AppColors.textGrey),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadMaterials,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            itemCount: _materials.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final material = _materials[index];
+              return _MaterialCard(
+                material: material,
+                showStatus: _canManage,
+                onTap: () => _openMaterial(material),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
+        title: const Text('Materials'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _loadMaterials,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
+}
+
+class _MaterialCard extends StatelessWidget {
+  const _MaterialCard({
+    required this.material,
+    required this.showStatus,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> material;
+  final bool showStatus;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = material['title']?.toString() ?? 'Untitled';
+    final description = material['description']?.toString() ?? '';
+    final published = material['is_published'] == true;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.tilePurple,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                title: Text(
-                  material['title']?.toString() ??
-                      'Tanpa judul',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: AppColors.primary,
                 ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        material['description']?.toString() ??
-                            '',
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
-                      if (canManage) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          published
-                              ? 'Status: Diterbitkan'
-                              : 'Status: Draf',
+                    ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textGrey,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    if (showStatus) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: published
+                              ? AppColors.tileGreen
+                              : AppColors.tileYellow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          published ? 'Published' : 'Draft',
                           style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: published
-                                ? Colors.green
-                                : Colors.orange,
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFFA16207),
                           ),
                         ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                ),
-                onTap: () => _openMaterial(material),
               ),
-            );
-          },
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textGrey),
+            ],
+          ),
         ),
       ),
     );
@@ -179,39 +283,50 @@ class _MaterialsPageState extends State<MaterialsPage> {
 }
 
 class MaterialDetailPage extends StatelessWidget {
-  final Map<String, dynamic> material;
+  const MaterialDetailPage({super.key, required this.material});
 
-  const MaterialDetailPage({
-    super.key,
-    required this.material,
-  });
+  final Map<String, dynamic> material;
 
   @override
   Widget build(BuildContext context) {
+    final description = material['description']?.toString() ?? '';
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Materi'),
-      ),
+      appBar: AppBar(title: const Text('Material')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              material['title']?.toString() ?? 'Tanpa judul',
-              style: Theme.of(context).textTheme.headlineSmall,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  material['title']?.toString() ?? 'Untitled',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textGrey,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+                const Divider(height: 32),
+                SelectableText(
+                  material['content']?.toString() ?? '',
+                  style: const TextStyle(fontSize: 15, height: 1.7),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              material['description']?.toString() ?? '',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const Divider(height: 32),
-            Text(
-              material['content']?.toString() ?? '',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ],
+          ),
         ),
       ),
     );
