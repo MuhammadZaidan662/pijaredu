@@ -6,6 +6,7 @@ import '../dashboard/home_data.dart';
 import '../dashboard/home_page.dart';
 import '../materials/materials_page.dart';
 import '../profile/profile_page.dart';
+import '../sql_playground/sql_playground_page.dart';
 import 'app_tab.dart';
 import 'coming_soon_page.dart';
 
@@ -88,10 +89,7 @@ class _MainShellState extends State<MainShell> {
       case AppTab.materials:
         return MaterialsPage(role: widget.role, embedded: true);
       case AppTab.sql:
-        return const ComingSoonPage(
-          title: 'SQL Practice',
-          icon: Icons.terminal_rounded,
-        );
+        return const SqlPlaygroundPage();
       case AppTab.tests:
         return ComingSoonPage(
           title: _isStudent ? 'Tests' : 'Tests & Results',
@@ -128,6 +126,7 @@ class _MainShellState extends State<MainShell> {
     final pages = [for (final tab in _order) _pageFor(tab)];
     final items = [for (final tab in _order) _itemFor(tab)];
     final body = IndexedStack(index: _index, children: pages);
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return PopScope(
       canPop: _index == 0,
@@ -169,7 +168,10 @@ class _MainShellState extends State<MainShell> {
 
           return Scaffold(
             body: body,
-            bottomNavigationBar: PijarBottomBar(
+            // Hide the bar while typing so it does not float above the keyboard.
+            bottomNavigationBar: keyboardOpen
+                ? null
+                : PijarBottomBar(
               items: items,
               currentIndex: _index,
               onTap: _select,
