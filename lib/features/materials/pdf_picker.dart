@@ -1,8 +1,6 @@
 import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 
-/// A PDF the lecturer chose on the phone.
 class PickedPdf {
   const PickedPdf({required this.name, required this.bytes});
 
@@ -12,19 +10,17 @@ class PickedPdf {
   int get size => bytes.length;
 }
 
-/// The only place that talks to the `file_picker` package.
-/// If a new package version changes its API, only this file needs editing.
 Future<PickedPdf?> pickPdf() async {
-  final result = await FilePicker.platform.pickFiles(
+  // 1. Gunakan FilePicker.pickFile() untuk memilih 1 file (kembalian langsung PlatformFile?)
+  final PlatformFile? file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: const ['pdf'],
-    withData: true,
   );
-  if (result == null || result.files.isEmpty) return null;
 
-  final file = result.files.first;
-  final bytes = file.bytes;
-  if (bytes == null) return null;
+  if (file == null) return null;
+
+  // 2. Gunakan readAsBytes() secara asynchronous untuk mendapatkan biner file
+  final Uint8List bytes = await file.readAsBytes();
 
   return PickedPdf(name: file.name, bytes: bytes);
 }
