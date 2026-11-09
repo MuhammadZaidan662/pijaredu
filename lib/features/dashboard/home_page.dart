@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../app/theme.dart';
 import '../../core/widgets/home_widgets.dart';
-import '../../core/widgets/pijar_logo.dart';
-import '../materials/materials_page.dart';
+import '../../core/widgets/user_avatar.dart';
+import '../materials/material_detail_page.dart';
+import '../materials/materials_repository.dart';
 import '../shell/app_tab.dart';
+import '../students/students_page.dart';
+import '../videos/videos_page.dart';
 import 'home_data.dart';
 
 /// Home for every role. Student sees learning shortcuts, lecturer/admin see
@@ -45,49 +48,52 @@ class HomePage extends StatelessWidget {
         MenuItem(
           icon: Icons.menu_book_rounded,
           label: 'Materials',
-          color: AppColors.tilePurple,
+          color: AppColors.iconPurple,
           onTap: () => onGoToTab(AppTab.materials),
         ),
         MenuItem(
           icon: Icons.play_circle_rounded,
           label: 'Videos',
-          color: AppColors.tilePink,
-          onTap: () => showComingSoon(context, 'Videos'),
+          color: AppColors.iconPink,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => VideosPage(role: role)),
+          ),
         ),
         MenuItem(
           icon: Icons.terminal_rounded,
           label: 'SQL Editor',
-          color: AppColors.tileYellow,
+          color: AppColors.iconAmber,
           onTap: () => onGoToTab(AppTab.sql),
         ),
         MenuItem(
           icon: Icons.quiz_rounded,
           label: 'Pretest',
-          color: AppColors.tileGreen,
+          color: AppColors.iconGreen,
           onTap: () => onGoToTab(AppTab.tests),
         ),
         MenuItem(
           icon: Icons.fact_check_rounded,
           label: 'Posttest',
-          color: AppColors.tileBlue,
+          color: AppColors.iconBlue,
           onTap: () => onGoToTab(AppTab.tests),
         ),
         MenuItem(
           icon: Icons.bar_chart_rounded,
           label: 'Results',
-          color: AppColors.tilePurple,
+          color: AppColors.iconTeal,
           onTap: () => onGoToTab(AppTab.tests),
         ),
         MenuItem(
           icon: Icons.trending_up_rounded,
           label: 'Progress',
-          color: AppColors.tilePink,
+          color: AppColors.iconOrange,
           onTap: () => showComingSoon(context, 'Progress'),
         ),
         MenuItem(
           icon: Icons.person_rounded,
           label: 'Profile',
-          color: AppColors.tileYellow,
+          color: AppColors.iconViolet,
           onTap: () => onGoToTab(AppTab.profile),
         ),
       ];
@@ -97,49 +103,55 @@ class HomePage extends StatelessWidget {
       MenuItem(
         icon: Icons.menu_book_rounded,
         label: 'Materials',
-        color: AppColors.tilePurple,
+        color: AppColors.iconPurple,
         onTap: () => onGoToTab(AppTab.materials),
       ),
       MenuItem(
         icon: Icons.play_circle_rounded,
         label: 'Videos',
-        color: AppColors.tilePink,
-        onTap: () => showComingSoon(context, 'Videos'),
+        color: AppColors.iconPink,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => VideosPage(role: role)),
+        ),
       ),
       MenuItem(
         icon: Icons.quiz_rounded,
         label: 'Pretest Questions',
-        color: AppColors.tileGreen,
+        color: AppColors.iconGreen,
         onTap: () => onGoToTab(AppTab.tests),
       ),
       MenuItem(
         icon: Icons.fact_check_rounded,
         label: 'Posttest Questions',
-        color: AppColors.tileBlue,
+        color: AppColors.iconBlue,
         onTap: () => onGoToTab(AppTab.tests),
       ),
       MenuItem(
         icon: Icons.groups_rounded,
         label: 'Students',
-        color: AppColors.tileYellow,
-        onTap: () => showComingSoon(context, 'Students'),
+        color: AppColors.iconOrange,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const StudentsPage()),
+        ),
       ),
       MenuItem(
         icon: Icons.terminal_rounded,
         label: 'SQL Editor',
-        color: AppColors.tileGreen,
+        color: AppColors.iconAmber,
         onTap: () => onGoToTab(AppTab.sql),
       ),
       MenuItem(
         icon: Icons.bar_chart_rounded,
         label: 'Results',
-        color: AppColors.tilePurple,
+        color: AppColors.iconTeal,
         onTap: () => onGoToTab(AppTab.tests),
       ),
       MenuItem(
         icon: Icons.person_rounded,
         label: 'Profile',
-        color: AppColors.tilePink,
+        color: AppColors.iconViolet,
         onTap: () => onGoToTab(AppTab.profile),
       ),
     ];
@@ -209,7 +221,19 @@ class HomePage extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const PijarLogo(size: 44),
+                      Semantics(
+                        button: true,
+                        label: 'Open profile',
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => onGoToTab(AppTab.profile),
+                          child: UserAvatar(
+                            name: data.name,
+                            imageUrl: data.avatarUrl,
+                            size: 48,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -250,8 +274,10 @@ class HomePage extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                MaterialDetailPage(material: material),
+                            builder: (_) => MaterialDetailPage(
+                              material: MaterialItem.fromJson(material),
+                              role: role,
+                            ),
                           ),
                         ),
                       ),

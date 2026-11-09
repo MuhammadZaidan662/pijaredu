@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/theme.dart';
+import '../tests/tests_repository.dart' show friendlyError;
+import 'material_detail_page.dart';
+import 'material_editor_page.dart';
+import 'materials_repository.dart';
 
+/// "Materials" tab (students) and "Content" tab (lecturers/admins).
 class MaterialsPage extends StatefulWidget {
   const MaterialsPage({
     super.key,
@@ -12,7 +16,7 @@ class MaterialsPage extends StatefulWidget {
 
   final String role;
 
-  /// True when shown as a bottom-navigation tab (no back button).
+  /// True when shown as a bottom-bar tab (no back button).
   final bool embedded;
 
   @override
@@ -20,9 +24,10 @@ class MaterialsPage extends StatefulWidget {
 }
 
 class _MaterialsPageState extends State<MaterialsPage> {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final _repo = MaterialsRepository.instance;
 
-  List<Map<String, dynamic>> _materials = [];
+  List<MaterialItem> _materials = [];
+  Set<int> _completed = {};
   bool _loading = true;
   String? _error;
 
@@ -31,50 +36,60 @@ class _MaterialsPageState extends State<MaterialsPage> {
   @override
   void initState() {
     super.initState();
-    _loadMaterials();
+    _load();
   }
 
-  Future<void> _loadMaterials() async {
+  Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final data = await _supabase
-          .from('materials')
-          .select('id, title, description, content, is_published, created_at')
-          .order('created_at', ascending: false);
-
+      final items = await _repo.loadMaterials();
+      var done = <int>{};
+      if (!_canManage) {
+        try {
+          done = await _repo.loadCompletedIds();
+        } catch (_) {
+          // Progress is a bonus: the list still works without it.
+        }
+      }
       if (!mounted) return;
-
       setState(() {
-        _materials = List<Map<String, dynamic>>.from(data);
+        _materials = items;
+        _completed = done;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
-        _error = e.toString();
+        _error = friendlyError(e);
         _loading = false;
       });
     }
   }
 
-  void _openMaterial(Map<String, dynamic> material) {
-    Navigator.push(
+  Future<void> _open(MaterialItem material) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MaterialDetailPage(material: material),
+        builder: (_) => MaterialDetailPage(material: material, role: widget.role),
       ),
     );
+    if (mounted) _load();
   }
 
-  Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+  Future<void> _add() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const MaterialEditorPage()),
+    );
+    if (changed == true && mounted) _load();
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_error != null) {
       return Center(
@@ -96,16 +111,13 @@ class _MaterialsPageState extends State<MaterialsPage> {
                 textAlign: TextAlign.center,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textGrey,
-                ),
+                style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
               ),
               const SizedBox(height: 16),
               SizedBox(
                 width: 160,
                 child: ElevatedButton(
-                  onPressed: _loadMaterials,
+                  onPressed: _load,
                   child: const Text('Try Again'),
                 ),
               ),
@@ -117,18 +129,20 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
     if (_materials.isEmpty) {
       return RefreshIndicator(
-        onRefresh: _loadMaterials,
+        onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 120),
-            Icon(Icons.menu_book_outlined,
+          children: [
+            const SizedBox(height: 120),
+            const Icon(Icons.menu_book_outlined,
                 size: 48, color: AppColors.textGrey),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Center(
               child: Text(
-                'No materials yet.',
-                style: TextStyle(color: AppColors.textGrey),
+                _canManage
+                    ? 'No materials yet. Tap "Add material".'
+                    : 'No materials yet.',
+                style: const TextStyle(color: AppColors.textGrey),
               ),
             ),
           ],
@@ -137,14 +151,14 @@ class _MaterialsPageState extends State<MaterialsPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadMaterials,
+      onRefresh: _load,
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            padding: EdgeInsets.fromLTRB(20, 8, 20, _canManage ? 96 : 24),
             itemCount: _materials.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -152,7 +166,8 @@ class _MaterialsPageState extends State<MaterialsPage> {
               return _MaterialCard(
                 material: material,
                 showStatus: _canManage,
-                onTap: () => _openMaterial(material),
+                completed: _completed.contains(material.id),
+                onTap: () => _open(material),
               );
             },
           ),
@@ -166,16 +181,25 @@ class _MaterialsPageState extends State<MaterialsPage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: !widget.embedded,
-        title: const Text('Materials'),
+        title: Text(_canManage ? 'Content' : 'Materials'),
         actions: [
           IconButton(
             tooltip: 'Refresh',
-            onPressed: _loading ? null : _loadMaterials,
+            onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
-      body: _buildBody(),
+      floatingActionButton: _canManage
+          ? FloatingActionButton.extended(
+        onPressed: _add,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add material'),
+      )
+          : null,
+      body: _body(),
     );
   }
 }
@@ -184,18 +208,45 @@ class _MaterialCard extends StatelessWidget {
   const _MaterialCard({
     required this.material,
     required this.showStatus,
+    required this.completed,
     required this.onTap,
   });
 
-  final Map<String, dynamic> material;
+  final MaterialItem material;
   final bool showStatus;
+  final bool completed;
   final VoidCallback onTap;
+
+  Widget _chip(String label, Color background, Color foreground) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: foreground,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final title = material['title']?.toString() ?? 'Untitled';
-    final description = material['description']?.toString() ?? '';
-    final published = material['is_published'] == true;
+    final chips = <Widget>[
+      if (material.category != null)
+        _chip(material.category!, AppColors.tilePurple, AppColors.primary),
+      if (showStatus)
+        material.isPublished
+            ? _chip('Published', AppColors.tileGreen, const Color(0xFF15803D))
+            : _chip('Draft', AppColors.tileYellow, const Color(0xFFA16207)),
+      if (completed)
+        _chip('Completed', AppColors.tileGreen, const Color(0xFF15803D)),
+    ];
 
     return Material(
       color: Colors.white,
@@ -211,11 +262,15 @@ class _MaterialCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.tilePurple,
+                  color: material.hasFile
+                      ? AppColors.tilePink
+                      : AppColors.tilePurple,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.menu_book_rounded,
+                child: Icon(
+                  material.hasFile
+                      ? Icons.picture_as_pdf_rounded
+                      : Icons.menu_book_rounded,
                   color: AppColors.primary,
                 ),
               ),
@@ -225,7 +280,7 @@ class _MaterialCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      material.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -233,10 +288,10 @@ class _MaterialCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (description.isNotEmpty) ...[
+                    if (material.description != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        description,
+                        material.description!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -246,28 +301,9 @@ class _MaterialCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (showStatus) ...[
+                    if (chips.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: published
-                              ? AppColors.tileGreen
-                              : AppColors.tileYellow,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          published ? 'Published' : 'Draft',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: published
-                                ? const Color(0xFF15803D)
-                                : const Color(0xFFA16207),
-                          ),
-                        ),
-                      ),
+                      Wrap(spacing: 6, runSpacing: 6, children: chips),
                     ],
                   ],
                 ),
@@ -275,57 +311,6 @@ class _MaterialCard extends StatelessWidget {
               const Icon(Icons.chevron_right_rounded,
                   color: AppColors.textGrey),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class MaterialDetailPage extends StatelessWidget {
-  const MaterialDetailPage({super.key, required this.material});
-
-  final Map<String, dynamic> material;
-
-  @override
-  Widget build(BuildContext context) {
-    final description = material['description']?.toString() ?? '';
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Material')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  material['title']?.toString() ?? 'Untitled',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textGrey,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-                const Divider(height: 32),
-                SelectableText(
-                  material['content']?.toString() ?? '',
-                  style: const TextStyle(fontSize: 15, height: 1.7),
-                ),
-              ],
-            ),
           ),
         ),
       ),

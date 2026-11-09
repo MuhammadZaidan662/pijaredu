@@ -123,6 +123,7 @@ class MenuItem {
 
   final IconData icon;
   final String label;
+  /// Color of the icon itself (there is no background tile behind it).
   final Color color;
   final VoidCallback onTap;
 }
@@ -169,29 +170,35 @@ class _MenuTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.tile),
         onTap: item.onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Container(
+              SizedBox(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: item.color,
-                  borderRadius: BorderRadius.circular(12),
+                child: Center(
+                  child: Icon(item.icon, size: 32, color: item.color),
                 ),
-                child: Icon(item.icon, size: 22, color: AppColors.primary),
               ),
-              const SizedBox(height: 6),
-              Text(
-                item.label,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
+              const SizedBox(height: 8),
+              // Fixed-height label area: icons stay at the same position
+              // whether the label uses one line or two.
+              SizedBox(
+                height: 30,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    item.label,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      height: 1.3,
+                    ),
+                  ),
                 ),
               ),
             ],

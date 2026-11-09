@@ -7,8 +7,9 @@ import '../dashboard/home_page.dart';
 import '../materials/materials_page.dart';
 import '../profile/profile_page.dart';
 import '../sql_playground/sql_playground_page.dart';
+import '../tests/lecturer_tests_page.dart';
+import '../tests/tests_page.dart';
 import 'app_tab.dart';
-import 'coming_soon_page.dart';
 
 /// Main screen after login: icon-only bottom bar on phones (SQL practice is
 /// the round button in the middle), side rail on wide screens.
@@ -91,10 +92,7 @@ class _MainShellState extends State<MainShell> {
       case AppTab.sql:
         return const SqlPlaygroundPage();
       case AppTab.tests:
-        return ComingSoonPage(
-          title: _isStudent ? 'Tests' : 'Tests & Results',
-          icon: Icons.fact_check_rounded,
-        );
+        return _isStudent ? const TestsPage() : const LecturerTestsPage();
       case AppTab.profile:
         return ProfilePage(
           role: widget.role,
@@ -147,7 +145,7 @@ class _MainShellState extends State<MainShell> {
                       onDestinationSelected: _select,
                       labelType: NavigationRailLabelType.selected,
                       backgroundColor: Colors.white,
-                      indicatorColor: AppColors.tilePurple,
+                      useIndicator: false,
                       destinations: [
                         for (final item in items)
                           NavigationRailDestination(

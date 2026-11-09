@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/theme.dart';
 import '../../core/widgets/home_widgets.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../dashboard/home_data.dart';
+import 'edit_profile_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({
@@ -29,6 +31,16 @@ class ProfilePage extends StatelessWidget {
       default:
         return role;
     }
+  }
+
+  Future<void> _edit(BuildContext context, HomeData data) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfilePage(role: role, data: data),
+      ),
+    );
+    if (changed == true) await onRefresh();
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -83,8 +95,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _content(BuildContext context, HomeData data) {
-    final initial =
-    data.name.isEmpty ? '?' : data.name.substring(0, 1).toUpperCase();
+    final studentNumber = data.studentNumber ?? '';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -108,15 +119,16 @@ class ProfilePage extends StatelessWidget {
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundColor: AppColors.primary,
-                          child: Text(
-                            initial,
-                            style: GoogleFonts.poppins(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                        Semantics(
+                          button: true,
+                          label: 'Edit profile photo',
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => _edit(context, data),
+                            child: UserAvatar(
+                              name: data.name,
+                              imageUrl: data.avatarUrl,
+                              size: 96,
                             ),
                           ),
                         ),
@@ -129,20 +141,27 @@ class ProfilePage extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.tilePurple,
-                            borderRadius: BorderRadius.circular(20),
+                        const SizedBox(height: 4),
+                        Text(
+                          _roleLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
                           ),
-                          child: Text(
-                            _roleLabel,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 14),
+                        OutlinedButton.icon(
+                          onPressed: () => _edit(context, data),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Edit profile'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            minimumSize: const Size(0, 46),
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.circular(AppRadius.button),
                             ),
                           ),
                         ),
@@ -174,6 +193,14 @@ class ProfilePage extends StatelessWidget {
                           label: 'Role',
                           value: _roleLabel,
                         ),
+                        if (role == 'student') ...[
+                          const Divider(height: 1),
+                          _InfoRow(
+                            icon: Icons.numbers_rounded,
+                            label: 'Student ID',
+                            value: studentNumber,
+                          ),
+                        ],
                       ],
                     ),
                   ),

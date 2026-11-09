@@ -96,19 +96,10 @@ class _BarIcon extends StatelessWidget {
           onTap: onTap,
           radius: 32,
           child: Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 52,
-              height: 40,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.tilePurple : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                selected ? item.selectedIcon : item.icon,
-                size: 24,
-                color: selected ? AppColors.primary : AppColors.textGrey,
-              ),
+            child: Icon(
+              selected ? item.selectedIcon : item.icon,
+              size: 26,
+              color: selected ? AppColors.primary : AppColors.textGrey,
             ),
           ),
         ),

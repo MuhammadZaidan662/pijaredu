@@ -14,6 +14,16 @@ class AppColors {
   static const success = Color(0xFF22C55E);
   static const danger = Color(0xFFE5484D);
 
+  // Icon colors for the Home menu (icons are drawn without a background tile).
+  static const iconPurple = Color(0xFF4540D9);
+  static const iconPink = Color(0xFFE0457B);
+  static const iconAmber = Color(0xFFF59E0B);
+  static const iconGreen = Color(0xFF16A34A);
+  static const iconBlue = Color(0xFF2563EB);
+  static const iconTeal = Color(0xFF0E7490);
+  static const iconOrange = Color(0xFFEA580C);
+  static const iconViolet = Color(0xFF7C3AED);
+
   // Pastel tiles used behind icons (menu grid, stat cards).
   static const tilePurple = Color(0xFFE6E3FF);
   static const tilePink = Color(0xFFFFE4EC);
